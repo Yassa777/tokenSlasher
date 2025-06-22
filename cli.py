@@ -138,11 +138,12 @@ def _cmd_run(args: argparse.Namespace) -> None:
 
     process_corpus(
         data_dir=data_dir,
-        ngram=int(cfg.get("ngram", 6)),
+        ngram=cfg.get("ngram", "auto"),
         threshold=float(cfg.get("threshold", 0.8)),
         topk=int(cfg.get("topk", 5000)),
         out_dir=out_dir,
         processes=int(cfg.get("processes", 8)),
+        metric=str(cfg.get("metric", "jaccard")),
     )
 
     # Build dashboard automatically.
