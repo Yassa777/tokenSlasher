@@ -1,9 +1,11 @@
 datasketch>=1.5
 xxhash>=3.4
-numpy>=1.23
 tqdm>=4.64
+numpy>=1.23
 pandas>=2.0
 matplotlib>=3.7
 ruff>=0.1
 black>=23.7
-pytest>=7.4 
+pytest>=7.4
+pyyaml>=6.0
+plotly>=5.18 
