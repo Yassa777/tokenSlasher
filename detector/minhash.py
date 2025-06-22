@@ -47,4 +47,17 @@ def compute_minhash(tokens: Iterable[str], num_perm: int = _NUM_PERMUTATIONS) ->
     mh = MinHash(num_perm=num_perm)
     for h in batch_xxhash64(list(tokens)):
         mh.update(h.to_bytes(8, byteorder="little"))
+    return mh
+
+
+def compute_minhash_from_hashes(hashes: Iterable[int], num_perm: int = _NUM_PERMUTATIONS) -> MinHash:
+    """Compute a MinHash sketch directly from an iterable of 64-bit integer hashes.
+
+    This variant avoids an additional pass through *xxHash* when the caller
+    already supplies pre-hashed 64-bit values (e.g. output of
+    :pyfunc:`detector.ingest.hashed_ngrams`).
+    """
+    mh = MinHash(num_perm=num_perm)
+    for h in hashes:
+        mh.update(h.to_bytes(8, byteorder="little"))
     return mh 

@@ -102,11 +102,57 @@ def slab_generator(path: os.PathLike | str, slab_tokens: int = 100_000) -> Gener
 # -----------------------------------------------------------
 
 def ngrams(tokens: List[str], n: int = 6) -> Iterable[str]:
-    """Generate *n*-grams (as joined strings) from *tokens*."""
+    """Generate *n*-grams (as joined strings) from *tokens*.
+
+    Any n-gram that contains the *SENTINEL* token in an **internal** position is
+    skipped so that no 6-gram straddles two documents, satisfying the unit test
+    expectations.
+    """
     if len(tokens) < n:
-        return []  # type: ignore
-    joined = (
-        " ".join(tokens[i : i + n])  # noqa: E203 (black formatting)
-        for i in range(len(tokens) - n + 1)
-    )
-    return joined 
+        return []  # type: ignore[return-value]
+
+    for i in range(len(tokens) - n + 1):
+        window = tokens[i : i + n]  # noqa: E203 (black formatting)
+        if SENTINEL in window:
+            pos = window.index(SENTINEL)
+            if 0 < pos < n - 1:
+                # Sentinel appears inside the n-gram → skip.
+                continue
+        yield " ".join(window)
+
+
+def hashed_ngrams(tokens: List[str], n: int = 6, *, base: int = 257) -> Iterable[int]:
+    """Generate rolling 64-bit Karp-Rabin hashes for *n*-grams.
+
+    The function pre-hashes each token with 64-bit *xxHash* (fallback to
+    :pyfunc:`hash`) and then applies a classic polynomial rolling hash with
+    modulus ``2**64`` (implicit via 64-bit overflow & masking).
+    """
+    mask = 0xFFFFFFFFFFFFFFFF  # 64-bit mask for overflow semantics
+
+    if len(tokens) < n:
+        return []  # type: ignore[return-value]
+
+    # Pre-compute 64-bit token hashes (fast SIMD path when *xxhash* w/ NumPy is available)
+    from .minhash import batch_xxhash64  # local import to avoid circular deps
+
+    token_hashes = batch_xxhash64(tokens)
+
+    # base^(n-1)  (mod 2^64) for rolling update step
+    pow_base_n_minus1 = pow(base, n - 1, 1 << 64)
+
+    # Initial hash value for the first window
+    h = 0
+    for i in range(n):
+        h = ((h * base) + token_hashes[i]) & mask
+    yield h
+
+    # Slide window across the sequence
+    for i in range(n, len(token_hashes)):
+        outgoing = token_hashes[i - n]
+        incoming = token_hashes[i]
+        # Remove contribution of the outgoing token
+        h = (h - (outgoing * pow_base_n_minus1 & mask)) & mask
+        # Multiply by base and add incoming token
+        h = ((h * base) + incoming) & mask
+        yield h 
