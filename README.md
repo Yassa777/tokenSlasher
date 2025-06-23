@@ -33,5 +33,15 @@ Produces cleaned shards and logs under `results/` in one command.
 ## One-Command Repro
 See `train.sh` for the exact flags used to replicate the results table.
 
+## Evaluation on Quora-style Questions
+
+For a labelled test set like `data/questions.csv` (columns `qid1, qid2, question1, question2, is_duplicate`) run:
+
+```bash
+python scripts/eval_questions.py --csv data/questions.csv --out results/
+```
+
+This generates ROC / PR curves and writes `questions_metrics.txt` summarising ROC-AUC, PR-AUC and the best F1 threshold.
+
 ## License
 Apache-2.0 

@@ -39,6 +39,10 @@ def tokenize(text: str, *, use_sentencepiece: bool = False, sp_model=None) -> Li
         Pre-loaded SentencePiece model. Required when *use_sentencepiece* is
         *True*.
     """
+    # Cast non‐string (e.g. NaN) to empty string.
+    if text is None or not isinstance(text, str):
+        text = ""
+
     if use_sentencepiece:
         if sp_model is None:
             raise ValueError("SentencePiece model must be supplied when use_sentencepiece=True")
