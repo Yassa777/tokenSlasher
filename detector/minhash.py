@@ -35,6 +35,11 @@ def batch_xxhash64(strings: List[str]) -> List[int]:
     return hashes.astype(np.uint64).tolist()
 
 
+def batch_xxhash32(strings: List[str]) -> List[int]:
+    """Return lower 32 bits of xxhash64 for each string."""
+    return [h & 0xFFFFFFFF for h in batch_xxhash64(strings)]
+
+
 # -----------------------------------------------------------
 # MinHash helpers
 # -----------------------------------------------------------

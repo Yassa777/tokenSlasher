@@ -15,8 +15,9 @@ Produces cleaned shards and logs under `results/` in one command.
 
 ## Method Highlights
 * Slab streaming: processes 100 k-token slabs with mmap so resident set size stays flat.
-* Sentinel `<doc>` injected between docs so 6-grams never bleed across boundaries.
-* 128-perm MinHash + 8×16 LSH buckets (≈0.8 Jaccard).
+* Character 5-gram + token skip-gram shingles with spaCy lemmatisation.
+* Sentinel `<doc>` injected between docs so shingles never bleed across boundaries.
+* 128-perm MinHash + 64×2 LSH buckets → high recall.
 * Vectorised xxhash64 batch hashing with benchmarked fallback path.
 * Junk-doc filter drops tiny or low-alpha content automatically.
 * Throughput & accuracy metrics auto-logged for every run.

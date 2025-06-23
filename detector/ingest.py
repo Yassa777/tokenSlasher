@@ -24,6 +24,15 @@ from . import SENTINEL
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _ALPHA_RE = re.compile(r"[A-Za-z]")
+_PUNCT_RE = re.compile(r"[^\w\s]")  # chars to strip for char-ngrams
+
+# Try loading spaCy model on demand; keep lazy to avoid heavy import when unused.
+try:
+    import spacy  # type: ignore
+
+    _NLP = spacy.load("en_core_web_sm", disable=["ner", "parser", "textcat"])
+except Exception:  # pragma: no cover – spaCy optional
+    _NLP = None
 
 
 def tokenize(text: str, *, use_sentencepiece: bool = False, sp_model=None) -> List[str]:
@@ -166,28 +175,35 @@ def hashed_ngrams(tokens: List[str], n: int = 6, *, base: int = 257) -> Iterable
 # Shingle generators (character n-grams and token skip-grams)
 # -----------------------------------------------------------
 
-
 def char_ngrams(text: str, n: int = 5) -> Iterable[str]:
-    """Generate overlapping lowercase character n-grams (including spaces)."""
-    text = text.lower()
+    """Generate overlapping lowercase character n-grams (punctuation stripped)."""
+    text = _PUNCT_RE.sub("", text.lower())
     if len(text) < n:
         return []  # type: ignore[return-value]
     for i in range(len(text) - n + 1):
         yield text[i : i + n]
 
 
+def _lemmatise_tokens(tokens: List[str]) -> List[str]:
+    """Return spaCy-lemmatised lowercase tokens if spaCy is available."""
+    if _NLP is None:
+        return [t.lower() for t in tokens]
+    doc = _NLP(" ".join(tokens))
+    return [t.lemma_.lower() for t in doc if not t.is_punct and not t.is_space]
+
+
 def token_skipgrams(tokens: List[str], skip: int = 1) -> Iterable[str]:
-    """Generate token skip-grams where exactly *skip* token is skipped."""
-    if len(tokens) < skip + 2:
+    """Generate token skip-grams over lemmatised tokens (wildcard = *)."""
+    lemmas = _lemmatise_tokens(tokens)
+    if len(lemmas) < skip + 2:
         return []  # type: ignore[return-value]
-    for i in range(len(tokens) - skip - 1):
-        yield f"{tokens[i]}*{tokens[i + skip + 1]}"
+    for i in range(len(lemmas) - skip - 1):
+        yield f"{lemmas[i]}*{lemmas[i + skip + 1]}"
 
 
 def shingles_for_text(text: str) -> Iterable[str]:
-    """Return combined character 5-grams and token skip-grams for *text*."""
+    """Return combined char 5-grams & skip-grams with spaCy normalisation."""
     toks = tokenize(text, use_sentencepiece=False)
-    # Merge iterables into a single set for uniqueness.
     return set(char_ngrams(text, 5)).union(token_skipgrams(toks, skip=1))
 
 
