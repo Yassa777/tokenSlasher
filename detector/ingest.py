@@ -159,4 +159,50 @@ def hashed_ngrams(tokens: List[str], n: int = 6, *, base: int = 257) -> Iterable
         h = (h - (outgoing * pow_base_n_minus1 & mask)) & mask
         # Multiply by base and add incoming token
         h = ((h * base) + incoming) & mask
-        yield h 
+        yield h
+
+
+# -----------------------------------------------------------
+# Shingle generators (character n-grams and token skip-grams)
+# -----------------------------------------------------------
+
+
+def char_ngrams(text: str, n: int = 5) -> Iterable[str]:
+    """Generate overlapping lowercase character n-grams (including spaces)."""
+    text = text.lower()
+    if len(text) < n:
+        return []  # type: ignore[return-value]
+    for i in range(len(text) - n + 1):
+        yield text[i : i + n]
+
+
+def token_skipgrams(tokens: List[str], skip: int = 1) -> Iterable[str]:
+    """Generate token skip-grams where exactly *skip* token is skipped."""
+    if len(tokens) < skip + 2:
+        return []  # type: ignore[return-value]
+    for i in range(len(tokens) - skip - 1):
+        yield f"{tokens[i]}*{tokens[i + skip + 1]}"
+
+
+def shingles_for_text(text: str) -> Iterable[str]:
+    """Return combined character 5-grams and token skip-grams for *text*."""
+    toks = tokenize(text, use_sentencepiece=False)
+    # Merge iterables into a single set for uniqueness.
+    return set(char_ngrams(text, 5)).union(token_skipgrams(toks, skip=1))
+
+
+# -----------------------------------------------------------
+# Main function
+# -----------------------------------------------------------
+
+def main():
+    # Example usage
+    text = "This is a sample text. It contains multiple sentences."
+    shingles = shingles_for_text(text)
+    print(f"Shingles for '{text}':")
+    for shingle in shingles:
+        print(shingle)
+
+
+if __name__ == "__main__":
+    main() 
