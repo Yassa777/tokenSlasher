@@ -15,12 +15,17 @@ except ImportError:  # pragma: no cover
 # Prevent Transformers from importing TensorFlow / Keras (avoids Keras 3 conflict)
 os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 
+MODEL_NAME = os.getenv("TOKSLASHER_SBER_MODEL", "all-mpnet-base-v2")
+
 
 @lru_cache(maxsize=1)
 def _get_model():
+    """Load SentenceTransformer model (memoised). Override via env var TOKSLASHER_SBER_MODEL."""
     if SentenceTransformer is None:
-        raise ImportError("sentence-transformers not installed. Please install to use semantic similarity.")
-    return SentenceTransformer("all-MiniLM-L6-v2")
+        raise ImportError(
+            "sentence-transformers not installed. Please install to use semantic similarity."
+        )
+    return SentenceTransformer(MODEL_NAME)
 
 
 def embed_text(text: str) -> np.ndarray:  # type: ignore[name-defined]
