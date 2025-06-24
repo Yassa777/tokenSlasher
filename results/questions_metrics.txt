@@ -1,3 +1,3 @@
-ROC_AUC: 0.5000
-PR_AUC:  0.6846
-Best_F1: 0.5393 at threshold 1.0000
+ROC_AUC: 0.7883
+PR_AUC:  0.5901
+Best_F1: 0.7071 at threshold 0.3657

@@ -1,2 +1,2 @@
 tokens_processed	seconds	throughput_tokens_per_s
-667381	4.66	143076.80
+7907975	412.90	19152.42

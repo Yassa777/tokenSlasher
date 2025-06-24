@@ -17,6 +17,7 @@ import math
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
+import numpy as np
 
 # Ensure repository root is on sys.path when executed as a script *before* local imports
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +25,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     auc,
@@ -35,27 +35,40 @@ from sklearn.metrics import (
 from tqdm import tqdm
 
 # Local imports (after sys.path tweak)
-from detector.ingest import ngrams, tokenize
-from detector.minhash import compute_minhash
+from detector.ingest import tokenize, char_ngrams, token_skipgrams
+from detector.minhash import batch_xxhash64
+from detector.semantic import embed_text, embed_texts, cosine_similarity
 
 # -----------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------
 
 
-def build_minhashes(questions: pd.Series, n: int) -> Dict[int, "MinHash"]:  # noqa: F821
-    """Return dict mapping row index → MinHash of *question* text."""
-    cache: Dict[str, "MinHash"] = {}
-    mh_dict: Dict[int, "MinHash"] = {}
+def _make_shingle_set(text: str) -> set[int]:
+    """Return hashed shingle set for *text*."""
+    toks = tokenize(text)
+    shingles = set(char_ngrams(text, 5)).union(token_skipgrams(toks, skip=1))
+    return set(batch_xxhash64(list(shingles)))
+
+
+def build_caches(questions: pd.Series) -> Tuple[Dict[int, set[int]], Dict[int, "np.ndarray"]]:  # noqa: F821
+    # Build shingle sets
+    unique_texts = questions.unique().tolist()
+    unique_texts = ["" if isinstance(t, float) else t for t in unique_texts]
+
+    shingle_cache: Dict[str, set[int]] = {t: _make_shingle_set(t) for t in unique_texts}
+
+    # Batch embeddings once
+    embs = embed_texts(unique_texts, batch_size=128)
+    embed_cache: Dict[str, "np.ndarray"] = {t: e for t, e in zip(unique_texts, embs)}
+
+    sh_map: Dict[int, set[int]] = {}
+    emb_map: Dict[int, "np.ndarray"] = {}
     for idx, text in questions.items():
-        if text in cache:
-            mh_dict[idx] = cache[text]
-            continue
-        toks = tokenize(text)
-        mh = compute_minhash(ngrams(toks, n=n))
-        cache[text] = mh
-        mh_dict[idx] = mh
-    return mh_dict
+        sh_map[idx] = shingle_cache[text]
+        emb_map[idx] = embed_cache[text]
+
+    return sh_map, emb_map
 
 
 # -----------------------------------------------------------
@@ -70,17 +83,31 @@ def eval_questions(csv_path: Path, ngram: int, out_dir: Path) -> None:
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build MinHash for each unique question only once.
-    mh_cache = build_minhashes(pd.concat([df["question1"], df["question2"]]), ngram)
+    # Concatenate questions and reset index so second half is offset by len(df)
+    combined_q = pd.concat([df["question1"], df["question2"]], ignore_index=True)
+    shingles_map, emb_map = build_caches(combined_q)
 
-    scores: List[float] = []
+    lexical_scores: List[float] = []
+    sem_scores: List[float] = []
+    blend_scores: List[float] = []
+
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Scoring pairs"):
-        mh1 = mh_cache[idx] if idx in mh_cache else compute_minhash(ngrams(tokenize(row["question1"]), n=ngram))
-        mh2 = mh_cache[idx + len(df)] if (idx + len(df)) in mh_cache else compute_minhash(ngrams(tokenize(row["question2"]), n=ngram))
-        scores.append(mh1.jaccard(mh2))
+        s1 = shingles_map[idx]
+        s2 = shingles_map[idx + len(df)]
+        lex = len(s1 & s2) / len(s1 | s2) if s1 and s2 else 0.0
+
+        emb1 = emb_map[idx]
+        emb2 = emb_map[idx + len(df)]
+        sem = cosine_similarity(emb1, emb2)
+
+        blend = 0.6 * lex + 0.4 * sem
+
+        lexical_scores.append(lex)
+        sem_scores.append(sem)
+        blend_scores.append(blend)
 
     y_true = df["is_duplicate"].astype(int).values
-    y_score = np.array(scores)
+    y_score = np.array(blend_scores)
 
     roc_auc = roc_auc_score(y_true, y_score)
     fpr, tpr, roc_thresh = roc_curve(y_true, y_score)
