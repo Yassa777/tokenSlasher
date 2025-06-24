@@ -18,6 +18,10 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
+import joblib
+import psutil
+import time
+import json
 
 # Ensure repository root is on sys.path when executed as a script *before* local imports
 ROOT = Path(__file__).resolve().parent.parent
@@ -87,9 +91,18 @@ def eval_questions(csv_path: Path, ngram: int, out_dir: Path) -> None:
     combined_q = pd.concat([df["question1"], df["question2"]], ignore_index=True)
     shingles_map, emb_map = build_caches(combined_q)
 
+    # Load trained LR blend model if available
+    lr_path = Path("results/lr_model.joblib")
+    clf = joblib.load(lr_path) if lr_path.exists() else None
+
+    proc = psutil.Process()
+    mem_start = proc.memory_info().rss / 1e6
+    t_eval_start = time.time()
+
     lexical_scores: List[float] = []
     sem_scores: List[float] = []
     blend_scores: List[float] = []
+    errors: List[dict] = []
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Scoring pairs"):
         s1 = shingles_map[idx]
@@ -100,11 +113,33 @@ def eval_questions(csv_path: Path, ngram: int, out_dir: Path) -> None:
         emb2 = emb_map[idx + len(df)]
         sem = cosine_similarity(emb1, emb2)
 
-        blend = 0.6 * lex + 0.4 * sem
+        if clf is not None:
+            feat_vec = np.array([
+                lex,
+                sem,
+                len(s1) / len(s2) if s2 else 0.0,
+                len(s2) / len(s1) if s1 else 0.0,
+                len(s1 & s2) / len(s1 | s2) if s1 and s2 else 0.0,
+                abs(len(s1) - len(s2)),
+                abs(len(s1) - len(s2)) / len(s1 | s2) if s1 and s2 else 0.0,
+            ], dtype="float32").reshape(1, -1)
+            blend = float(clf.predict_proba(feat_vec)[0, 1])
+        else:
+            blend = 0.6 * lex + 0.4 * sem
 
         lexical_scores.append(lex)
         sem_scores.append(sem)
         blend_scores.append(blend)
+
+        # collect error info for later
+        errors.append({
+            "q1": df["question1"][idx],
+            "q2": df["question2"][idx],
+            "label": int(row["is_duplicate"]),
+            "lex": round(lex,4),
+            "sem": round(sem,4),
+            "blend": round(blend,4)
+        })
 
     y_true = df["is_duplicate"].astype(int).values
     y_score = np.array(blend_scores)
@@ -148,6 +183,18 @@ def eval_questions(csv_path: Path, ngram: int, out_dir: Path) -> None:
     plt.legend(loc="lower left")
     plt.tight_layout()
     plt.savefig(out_dir / "pr_curve.png", dpi=150)
+
+    # Dump FP/FN examples (top 50 by wrongness)
+    wrong = sorted(errors, key=lambda d: abs(d["label"]- (d["blend"]>=best_thresh)), reverse=True)
+    with (out_dir/"errors.jsonl").open("w", encoding="utf-8") as f:
+        for rec in wrong[:50]:
+            json.dump(rec, f); f.write("\n")
+
+    # throughput & mem
+    eval_seconds = time.time() - t_eval_start
+    mem_end = proc.memory_info().rss / 1e6
+    speed_path = out_dir/"speed_eval.txt"
+    speed_path.write_text(f"pairs\tseconds\tMB_start\tMB_end\n{len(df)}\t{eval_seconds:.2f}\t{mem_start:.1f}\t{mem_end:.1f}\n")
 
 
 # -----------------------------------------------------------
