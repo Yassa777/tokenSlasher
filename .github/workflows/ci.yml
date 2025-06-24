@@ -26,7 +26,7 @@ jobs:
           pip install -r requirements.txt
       - name: Lint
         run: |
-          ruff .
+          ruff check .
           black --check .
       - name: Tests
         run: |
