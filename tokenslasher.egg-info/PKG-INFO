@@ -1,3 +1,31 @@
+Metadata-Version: 2.4
+Name: tokenslasher
+Version: 1.0.0
+Summary: High-speed near-duplicate detection for massive text corpora.
+Author-email: TokenSlasher Devs <dev@example.com>
+License: Apache-2.0
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Intended Audience :: Developers
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: datasketch>=1.5
+Requires-Dist: xxhash>=3.4
+Requires-Dist: numpy>=1.23
+Requires-Dist: tqdm>=4.64
+Requires-Dist: pandas>=2.0
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: sentence-transformers>=2.2
+Requires-Dist: spacy>=3.6
+Requires-Dist: psutil>=5.9
+Provides-Extra: semantic
+Requires-Dist: sentence-transformers>=2.2; extra == "semantic"
+Requires-Dist: torch; extra == "semantic"
+Provides-Extra: dashboard
+Requires-Dist: streamlit>=1.28; extra == "dashboard"
+Requires-Dist: plotly>=5.18; extra == "dashboard"
+
 TokenSlasher slashes redundant tokens from massive text corpora at warp speed. Train on 100% quality with 0% bloat.
 
 | Dataset | Before Tokens | After Tokens | Tokens Saved | Processing Speed |

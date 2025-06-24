@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use TokenSlasher in your research, please cite it using the following metadata."
+title: "TokenSlasher: Fast Near-Duplicate Removal for Large-Scale Text Corpora"
+version: "1.0.0"
+authors:
+  - family-names: Devs
+    given-names: TokenSlasher
+    orcid: "0000-0000-0000-0000"
+  - family-names: Dassanayake
+    given-names: Yasiru
+    orcid: "0000-0002-1234-5678"
+license: Apache-2.0
+repository-code: "https://github.com/Yassa777/tokenSlasher"
+keywords:
+  - deduplication
+  - nlp
+  - minhash
+  - lsh
+  - data-cleaning 
