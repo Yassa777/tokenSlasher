@@ -7,10 +7,17 @@ TokenSlasher slashes redundant tokens from massive text corpora at warp speed. T
 |---------|---------------|--------------|--------------|------------------|
 | (fill)  |               |              |              |                  |
 
-| Dataset | Tokens | Speed (tok/s) | ROC-AUC | PR-AUC |
-|---------|--------|---------------|---------|---------|
-| Enron 2.5k docs | 0.67 M | 143 k | — | — |
-| Quora 100 k pairs | — | — | 0.909 | 0.826 |
+### 🚀 Throughput benchmark (single-core, M2 Pro)
+
+| Dataset | Tokens | Speed (tok/s) |
+|---------|--------|---------------|
+| Enron 2 500 docs | **0.67 M** | **143 k** |
+
+### 🎯 Classifier accuracy (Quora duplicate questions)
+
+| Sample size | ROC-AUC | PR-AUC |
+|-------------|---------|--------|
+| 100 k pairs | **0.909** | **0.826** |
 
 ## Overview
 Efficient near-duplicate detection and removal for large-scale text datasets using 6-gram MinHash + LSH.
@@ -19,7 +26,7 @@ Efficient near-duplicate detection and removal for large-scale text datasets usi
 ```
 pip install tokenslasher            # from PyPI after wheel upload
 # or, from source:
-#   git clone https://github.com/yourname/tokenslasher && cd tokenslasher
+#   git clone https://github.com/yassa777/tokenSlasher && cd tokenslasher
 #   pip install -e .
 
 # run deduplication
