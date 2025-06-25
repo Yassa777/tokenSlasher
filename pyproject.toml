@@ -39,4 +39,8 @@ dashboard = ["streamlit>=1.28", "plotly>=5.18"]
 
 [tool.setuptools]
 packages = ["detector"]
-include-package-data = true 
+include-package-data = true
+
+[tool.ruff]
+line-length = 100
+ignore = ["E402"] 
