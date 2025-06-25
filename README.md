@@ -1,5 +1,8 @@
 TokenSlasher slashes redundant tokens from massive text corpora at warp speed. Train on 100% quality with 0% bloat.
 
+<img width="1709" alt="image" src="https://github.com/user-attachments/assets/07f39dd7-82dc-466e-a26b-bb4bbe7e2dfa" />
+
+
 | Dataset | Before Tokens | After Tokens | Tokens Saved | Processing Speed |
 |---------|---------------|--------------|--------------|------------------|
 | (fill)  |               |              |              |                  |
