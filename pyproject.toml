@@ -4,16 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tokenslasher"
-version = "1.0.0"
+version = "1.5.0"
 authors = [
   {name = "TokenSlasher Devs", email = "dev@example.com"}
 ]
-description = "High-speed near-duplicate detection for massive text corpora."
+description = "High-speed text data cleaning, filtering, and deduplication pipeline for massive corpora."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 classifiers = [
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Intended Audience :: Developers",
 ]
@@ -28,18 +27,28 @@ dependencies = [
   "sentence-transformers>=2.2",
   "spacy>=3.6",
   "psutil>=5.9",
+  "langdetect>=1.0.9",
+  "beautifulsoup4>=4.12",
+  "presidio-analyzer>=2.2",
+  "presidio-anonymizer>=2.2",
+  "transformers>=4.30",
+  "pyarrow>=14.0",
+  "fastparquet>=2023.10",
+  "chardet>=5.2",
+  "lxml>=4.9",
 ]
 
 [project.scripts]
-tokenslasher = "detector.dedup:main"
+tokenslasher = "tokenslasher.cli:main"
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2", "torch"]
 dashboard = ["streamlit>=1.28", "plotly>=5.18"]
+toxicity = ["detoxify>=0.5.2"]
+perplexity = ["torch", "transformers"]
 
-[tool.setuptools]
-packages = ["detector"]
-include-package-data = true
+[tool.setuptools.packages.find]
+include = ["tokenslasher*"]
 
 [tool.ruff]
 line-length = 100

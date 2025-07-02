@@ -1,0 +1,6 @@
+{"text": "This is a good quality document with proper length and structure. It contains meaningful information about data processing and should pass most filters."}
+{"content": "Short text", "metadata": "Should be filtered out due to insufficient length"}
+{"text": "Este es un documento en español que debería ser filtrado si solo se aceptan documentos en inglés. Contiene suficiente texto pero está en el idioma incorrecto."}
+{"text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "note": "Repetitive content should be filtered"}
+{"body": "Contact us at john.doe@email.com or call (555) 123-4567 for more information. This document contains PII that should be anonymized."}
+{"text": "123456789012345678901234567890123456789012345678901234567890 This document is mostly numbers and should have high perplexity."}

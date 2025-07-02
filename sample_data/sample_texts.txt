@@ -1,0 +1,7 @@
+This is a high-quality English document that should pass all filters. It contains sufficient text length, proper grammar, and meaningful content. The document discusses the importance of data quality in machine learning applications and how proper preprocessing can significantly improve model performance.
+
+Another paragraph with substantial content about natural language processing techniques. Modern NLP systems rely heavily on clean, well-formatted text data to achieve optimal results. Proper tokenization, normalization, and deduplication are essential preprocessing steps.
+
+This document should be retained by the TokenSlasher pipeline as it meets all quality criteria and represents the type of clean text data that is valuable for training language models.
+
+Here's a duplicate paragraph about natural language processing techniques. Modern NLP systems rely heavily on clean, well-formatted text data to achieve optimal results. This should be caught by the deduplication system.

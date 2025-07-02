@@ -2,10 +2,17 @@
 
 Usage
 -----
-$ tokenslasher run config.yml
+$ tokenslasher clean input_data/ --output cleaned_data.jsonl
+$ tokenslasher preview input_data/
+$ tokenslasher run config.yml  # Legacy V1.0 command
 $ tokenslasher diff old_corpus_dir new_corpus_dir
 
-The *run* command executes the duplicate-detection pipeline based on a YAML
+The *clean* command (V1.5) executes the complete data cleaning, filtering, and 
+deduplication pipeline with modern features.
+
+The *preview* command shows a sample of input data without processing.
+
+The *run* command (Legacy V1.0) executes the duplicate-detection pipeline based on a YAML
 configuration file, then emits an interactive Plotly HTML dashboard
 (*results/dashboard.html* by default).
 
@@ -31,6 +38,8 @@ except ImportError:  # pragma: no cover
 
 from .detector.dedup import process_corpus
 from .detector.ingest import slab_generator, tokenize, SENTINEL
+from .detector.pipeline import run_pipeline, preview_input, estimate_processing_time
+from .detector.filters import create_default_pipeline
 
 # -----------------------------------------------------------
 # Helpers
@@ -126,8 +135,59 @@ def _build_dashboard(results_dir: Path) -> None:  # pragma: no cover – viz onl
 # Commands
 # -----------------------------------------------------------
 
+def _cmd_clean(args: argparse.Namespace) -> None:
+    """V1.5 clean command - comprehensive data processing pipeline."""
+    print(f"🧹 TokenSlasher V1.5 - Cleaning data from {args.input}")
+    
+    # Build filter pipeline
+    filter_kwargs = {}
+    if args.languages:
+        filter_kwargs['allowed_languages'] = set(args.languages)
+    if args.min_length:
+        filter_kwargs['min_length'] = args.min_length
+    if args.max_perplexity:
+        filter_kwargs['max_perplexity'] = args.max_perplexity
+    if args.pii_mode:
+        filter_kwargs['pii_mode'] = args.pii_mode
+    if args.use_toxicity_model:
+        filter_kwargs['use_toxicity_model'] = True
+    
+    filter_pipeline = create_default_pipeline(**filter_kwargs)
+    
+    # Run pipeline
+    stats = run_pipeline(
+        input_paths=args.input,
+        output_path=args.output,
+        filter_pipeline=filter_pipeline,
+        enable_dedup=not args.no_dedup,
+        dedup_threshold=args.dedup_threshold,
+        output_format=args.format,
+        shard_size=args.shard_size,
+        verbose=not args.quiet
+    )
+    
+    if args.save_stats:
+        stats_path = Path(args.output).parent / f"{Path(args.output).stem}_full_stats.json"
+        with open(stats_path, 'w') as f:
+            json.dump(stats, f, indent=2)
+        print(f"💾 Detailed stats saved to {stats_path}")
+
+
+def _cmd_preview(args: argparse.Namespace) -> None:
+    """Preview input data."""
+    preview_input(args.input, max_samples=args.samples)
+    
+    if args.estimate_time:
+        estimates = estimate_processing_time(args.input, docs_per_second=args.speed)
+        print(f"\n⏱️ Processing Time Estimates:")
+        print(f"   - Documents: ~{estimates['estimated_documents']:,}")
+        print(f"   - Time: ~{estimates['estimated_minutes']:.1f} minutes")
+        if estimates['estimated_hours'] > 1:
+            print(f"           (~{estimates['estimated_hours']:.1f} hours)")
+
 
 def _cmd_run(args: argparse.Namespace) -> None:
+    """Legacy V1.0 run command."""
     cfg_path: Path = args.config.resolve()
     with cfg_path.open() as f:
         cfg = yaml.safe_load(f)
@@ -151,6 +211,7 @@ def _cmd_run(args: argparse.Namespace) -> None:
 
 
 def _cmd_diff(args: argparse.Namespace) -> None:
+    """Compare two corpora."""
     old_dir = Path(args.old).expanduser().resolve()
     new_dir = Path(args.new).expanduser().resolve()
 
@@ -173,11 +234,57 @@ def _cmd_diff(args: argparse.Namespace) -> None:
 
 
 def main(argv: List[str] | None = None) -> None:  # noqa: D401 – simple
-    parser = argparse.ArgumentParser(prog="tokenslasher", description="TokenSlasher toolkit")
+    parser = argparse.ArgumentParser(
+        prog="tokenslasher", 
+        description="TokenSlasher V1.5 - Complete text data processing toolkit"
+    )
     sub = parser.add_subparsers(required=True, dest="cmd")
 
-    # run
-    p_run = sub.add_parser("run", help="Run duplicate-detection pipeline via YAML config")
+    # clean (V1.5 main command)
+    p_clean = sub.add_parser(
+        "clean", 
+        help="Clean, filter, and deduplicate text data (V1.5)"
+    )
+    p_clean.add_argument("input", nargs="+", help="Input files, directories, or glob patterns")
+    p_clean.add_argument("-o", "--output", required=True, help="Output file path")
+    p_clean.add_argument("--format", default="auto", 
+                        choices=["auto", "jsonl", "txt", "parquet"],
+                        help="Output format (default: auto-detect from extension)")
+    p_clean.add_argument("--shard-size", type=int,
+                        help="Records per shard for large outputs")
+    p_clean.add_argument("--no-dedup", action="store_true",
+                        help="Disable deduplication")
+    p_clean.add_argument("--dedup-threshold", type=float, default=0.8,
+                        help="Deduplication similarity threshold (default: 0.8)")
+    p_clean.add_argument("--languages", nargs="+", default=["en"],
+                        help="Allowed languages (default: en)")
+    p_clean.add_argument("--min-length", type=int, default=50,
+                        help="Minimum text length in characters (default: 50)")
+    p_clean.add_argument("--max-perplexity", type=float, default=1000,
+                        help="Maximum perplexity threshold (default: 1000)")
+    p_clean.add_argument("--pii-mode", choices=["filter", "anonymize"], default="anonymize",
+                        help="PII handling mode (default: anonymize)")
+    p_clean.add_argument("--use-toxicity-model", action="store_true",
+                        help="Use ML model for toxicity detection")
+    p_clean.add_argument("--save-stats", action="store_true",
+                        help="Save detailed statistics to JSON")
+    p_clean.add_argument("-q", "--quiet", action="store_true",
+                        help="Suppress progress output")
+    p_clean.set_defaults(func=_cmd_clean)
+
+    # preview
+    p_preview = sub.add_parser("preview", help="Preview input data")
+    p_preview.add_argument("input", nargs="+", help="Input files, directories, or glob patterns")
+    p_preview.add_argument("--samples", type=int, default=5,
+                          help="Number of sample documents to show (default: 5)")
+    p_preview.add_argument("--estimate-time", action="store_true",
+                          help="Estimate processing time")
+    p_preview.add_argument("--speed", type=float, default=100,
+                          help="Estimated processing speed (docs/sec, default: 100)")
+    p_preview.set_defaults(func=_cmd_preview)
+
+    # run (legacy V1.0)
+    p_run = sub.add_parser("run", help="Run duplicate-detection pipeline via YAML config (Legacy V1.0)")
     p_run.add_argument("config", type=Path, help="Path to YAML configuration file")
     p_run.set_defaults(func=_cmd_run)
 
